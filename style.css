@@ -1,0 +1,242 @@
+/* ============================================================
+ * Interpres — 이야기 통역사
+ * ============================================================ */
+
+.interp {
+    --interp-accent: var(--SmartThemeQuoteColor, #7aa2f7);
+    --interp-border: color-mix(in srgb, var(--SmartThemeBodyColor, #ccc) 18%, transparent);
+    --interp-soft: color-mix(in srgb, var(--SmartThemeBodyColor, #ccc) 6%, transparent);
+}
+
+/* 코어의 .menu_button은 width: min-content라 한글이 세로로 쪼개진다 — 전부 보정 */
+#interp_settings .menu_button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
+    width: fit-content;
+    padding: 5px 11px;
+    font-size: 0.84em;
+    margin: 0;
+}
+
+#interp_settings .menu_button i { margin: 0; }
+
+.interp__version {
+    font-size: 0.72em;
+    font-weight: 600;
+    opacity: 0.65;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border: 1px solid var(--interp-border);
+    border-radius: 999px;
+    vertical-align: middle;
+}
+
+/* ---------- 탭 ---------- */
+
+.interp__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 10px 0 0;
+}
+
+.interp__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--interp-border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background: transparent;
+    color: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.interp__tab:hover { opacity: 1; }
+
+.interp__tab.is-active {
+    opacity: 1;
+    background: var(--interp-soft);
+    border-color: var(--interp-accent);
+    box-shadow: inset 0 2px 0 var(--interp-accent);
+}
+
+.interp__panel {
+    display: none;
+    padding: 12px;
+    border: 1px solid var(--interp-border);
+    border-radius: 0 8px 8px 8px;
+    background: var(--interp-soft);
+}
+
+.interp__panel.is-active {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ---------- 필드 ---------- */
+
+.interp__field { display: flex; flex-direction: column; gap: 4px; }
+.interp__field > label { font-size: 0.85em; font-weight: 600; }
+.interp__field > label small { font-weight: 400; opacity: 0.65; margin-left: 4px; }
+.interp__field--btn { justify-content: flex-end; }
+
+.interp__grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.interp .checkbox_label small { opacity: 0.65; }
+
+.interp__dial-ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75em;
+    opacity: 0.6;
+}
+
+.interp__hint {
+    font-size: 0.8em;
+    line-height: 1.55;
+    opacity: 0.75;
+    padding: 8px 10px;
+    border-left: 3px solid var(--interp-accent);
+    border-radius: 4px;
+    background: var(--interp-soft);
+}
+
+.interp__hint code {
+    padding: 0 4px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--SmartThemeBodyColor, #ccc) 12%, transparent);
+}
+
+/* ---------- 섹션 헤더 ---------- */
+
+.interp__section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.interp__section-head h4 { margin: 0 0 2px; }
+.interp__section-head p { margin: 0; font-size: 0.8em; opacity: 0.65; }
+
+.interp__actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+
+/* ---------- 용어집 ---------- */
+
+.interp__list { display: flex; flex-direction: column; gap: 6px; }
+
+.interp__empty {
+    font-size: 0.82em;
+    opacity: 0.6;
+    text-align: center;
+    padding: 14px 8px;
+    border: 1px dashed var(--interp-border);
+    border-radius: 8px;
+}
+
+.interp__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.interp__row .text_pole { flex: 1; min-width: 0; margin: 0; }
+.interp__arrow { opacity: 0.5; flex-shrink: 0; }
+
+#interp_settings .interp__del {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+}
+
+/* ---------- 말투 카드 ---------- */
+
+.interp__voice {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--interp-border);
+    border-radius: 8px;
+}
+
+.interp__voice-head { display: flex; align-items: center; gap: 6px; }
+.interp__voice-head .text_pole { flex: 1; margin: 0; }
+.interp__voice .interp__vstyle { margin: 0; resize: vertical; }
+
+/* ---------- 도구 ---------- */
+
+.interp__tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+#interp_settings .interp__tools .menu_button {
+    width: auto;
+    padding: 9px 6px;
+}
+
+.interp__stats {
+    font-size: 0.85em;
+    padding: 8px 10px;
+    border: 1px solid var(--interp-border);
+    border-radius: 8px;
+}
+
+/* ---------- 번역 프롬프트 편집 ---------- */
+
+.interp__prompt {
+    width: 100%;
+    margin: 0;
+    resize: vertical;
+    font-family: var(--monoFontFamily, monospace);
+    font-size: 0.78em;
+    line-height: 1.5;
+    white-space: pre;
+}
+
+/* ---------- 메시지 버튼 ---------- */
+
+.interp_msg_btn, .interp_cmp_btn { cursor: pointer; }
+.interp_msg_btn.fa-hourglass-half { opacity: 0.9; }
+
+/* ---------- 대조 팝업 ---------- */
+
+.interp-compare {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.interp-compare h3 { margin: 0 0 4px; }
+.interp-compare h3 small { opacity: 0.55; font-weight: 400; }
+.interp-compare label { font-size: 0.82em; font-weight: 600; opacity: 0.8; }
+.interp-compare textarea { width: 100%; resize: vertical; }
+
+/* ---------- 모바일 ---------- */
+
+@media (max-width: 600px) {
+    .interp__grid2 { grid-template-columns: 1fr; }
+    .interp__tab span { display: none; }
+    .interp__tab { padding: 8px 12px; }
+    .interp__section-head { flex-direction: column; }
+    .interp__tools { grid-template-columns: 1fr 1fr; }
+}

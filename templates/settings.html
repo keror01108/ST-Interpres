@@ -1,0 +1,266 @@
+<div id="interp_settings" class="interp">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b><i class="fa-solid fa-earth-asia"></i> Interpres — 이야기 통역사 <span class="interp__version">v1.0.0</span></b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+
+            <div class="interp__tabs" role="tablist" aria-label="Interpres 설정">
+                <button class="interp__tab is-active" type="button" data-tab="basic">
+                    <i class="fa-solid fa-language"></i><span>기본</span>
+                </button>
+                <button class="interp__tab" type="button" data-tab="style">
+                    <i class="fa-solid fa-masks-theater"></i><span>용어·말투</span>
+                </button>
+                <button class="interp__tab" type="button" data-tab="model">
+                    <i class="fa-solid fa-plug"></i><span>모델</span>
+                </button>
+                <button class="interp__tab" type="button" data-tab="advanced">
+                    <i class="fa-solid fa-sliders"></i><span>고급</span>
+                </button>
+                <button class="interp__tab" type="button" data-tab="tools">
+                    <i class="fa-solid fa-screwdriver-wrench"></i><span>도구</span>
+                </button>
+            </div>
+
+            <!-- ===== 기본 ===== -->
+            <section class="interp__panel is-active" data-panel="basic">
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_enabled">
+                    <span>Interpres 사용</span>
+                </label>
+                <div class="interp__grid2">
+                    <div class="interp__field">
+                        <label for="interp_view_lang">감상어 <small>화면에 표시할 언어</small></label>
+                        <select id="interp_view_lang" class="text_pole">
+                            <option value="ko">한국어</option>
+                            <option value="en">English</option>
+                            <option value="ja">日本語</option>
+                            <option value="zh">中文</option>
+                            <option value="es">Español</option>
+                            <option value="fr">Français</option>
+                            <option value="de">Deutsch</option>
+                            <option value="ru">Русский</option>
+                            <option value="pt">Português</option>
+                            <option value="it">Italiano</option>
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="th">ไทย</option>
+                            <option value="id">Bahasa Indonesia</option>
+                        </select>
+                    </div>
+                    <div class="interp__field">
+                        <label for="interp_story_lang">모델어 <small>모델이 읽고 쓰는 언어</small></label>
+                        <select id="interp_story_lang" class="text_pole">
+                            <option value="en">English</option>
+                            <option value="ko">한국어</option>
+                            <option value="ja">日本語</option>
+                            <option value="zh">中文</option>
+                            <option value="es">Español</option>
+                            <option value="fr">Français</option>
+                            <option value="de">Deutsch</option>
+                            <option value="ru">Русский</option>
+                            <option value="pt">Português</option>
+                            <option value="it">Italiano</option>
+                            <option value="vi">Tiếng Việt</option>
+                            <option value="th">ไทย</option>
+                            <option value="id">Bahasa Indonesia</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_auto_in">
+                    <span>AI 응답 자동 번역 <small>(모델어 → 감상어, 화면에만 표시)</small></span>
+                </label>
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_auto_out">
+                    <span>내 입력 자동 번역 <small>(감상어 → 모델어, 화면엔 내 원문 유지)</small></span>
+                </label>
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_skip_native">
+                    <span>이미 감상어인 본문은 건너뛰기</span>
+                </label>
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_reasoning">
+                    <span>추론(리즈닝) 블록도 번역</span>
+                </label>
+
+                <div class="interp__field">
+                    <label for="interp_tone_dial">번역 결 <b id="interp_tone_dial_label">균형</b></label>
+                    <input type="range" id="interp_tone_dial" min="1" max="5" step="1">
+                    <div class="interp__dial-ends"><span>직역 위주</span><span>과감한 의역</span></div>
+                </div>
+
+                <div class="interp__field">
+                    <label for="interp_reader_note">독자 지시문 <small>번역가에게 항상 전달되는 내 요구사항</small></label>
+                    <textarea id="interp_reader_note" class="text_pole" rows="3" placeholder="예: 캐릭터의 대사는 반말로, 나레이션은 문어체로. 신체 묘사는 완곡어 없이 그대로."></textarea>
+                </div>
+
+                <div class="interp__hint">
+                    원문은 그대로 모델에게 전달되고 <b>화면에만 번역</b>이 표시됩니다.
+                    메시지의 <i class="fa-solid fa-earth-asia"></i> 버튼으로 개별 번역/원문 전환,
+                    <i class="fa-solid fa-scale-balanced"></i> 버튼으로 원문·번역 대조 및 직접 수정이 가능합니다.
+                </div>
+            </section>
+
+            <!-- ===== 용어·말투 ===== -->
+            <section class="interp__panel" data-panel="style">
+                <div class="interp__section-head">
+                    <div>
+                        <h4>용어집</h4>
+                        <p>이름·지명·기술명 등의 표기를 고정합니다. 번역 시 항상 이 표기를 따릅니다.</p>
+                    </div>
+                    <div class="interp__actions">
+                        <div class="menu_button" id="interp_glossary_scan" title="캐릭터 카드와 최근 대화에서 고유명사를 자동 수집합니다.">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>자동 수집</span>
+                        </div>
+                        <div class="menu_button" id="interp_glossary_add">
+                            <i class="fa-solid fa-plus"></i><span>추가</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="interp_glossary_list" class="interp__list"></div>
+
+                <div class="interp__section-head">
+                    <div>
+                        <h4>말투 카드</h4>
+                        <p>캐릭터별 어투(존댓말/반말, 말버릇, 어미)를 기록해 번역 문체를 일관되게 지킵니다.</p>
+                    </div>
+                    <div class="interp__actions">
+                        <div class="menu_button" id="interp_voice_scan" title="캐릭터 카드와 최근 대화에서 말투를 자동 분석합니다.">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>말투 스캔</span>
+                        </div>
+                        <div class="menu_button" id="interp_voice_add">
+                            <i class="fa-solid fa-plus"></i><span>추가</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="interp_voice_list" class="interp__list"></div>
+            </section>
+
+            <!-- ===== 모델 ===== -->
+            <section class="interp__panel" data-panel="model">
+                <div class="interp__field">
+                    <label for="interp_api_mode">번역 모델 연결</label>
+                    <select id="interp_api_mode" class="text_pole">
+                        <option value="current">현재 연결된 API 사용</option>
+                        <option value="profile">커넥션 프로필 선택</option>
+                        <option value="custom">커스텀 API 직접 입력 (OpenAI 호환)</option>
+                    </select>
+                </div>
+                <div class="interp__field interp__profile-row" style="display:none;">
+                    <label for="interp_profile">커넥션 프로필</label>
+                    <select id="interp_profile" class="text_pole"></select>
+                </div>
+                <div class="interp__custom-api" style="display:none;">
+                    <div class="interp__field">
+                        <label for="interp_api_url">엔드포인트 URL</label>
+                        <input type="text" id="interp_api_url" class="text_pole" placeholder="https://api.example.com/v1">
+                    </div>
+                    <div class="interp__field">
+                        <label for="interp_api_key">API 키</label>
+                        <input type="password" id="interp_api_key" class="text_pole" placeholder="sk-...">
+                    </div>
+                    <div class="interp__grid2">
+                        <div class="interp__field">
+                            <label for="interp_api_model">모델명</label>
+                            <input type="text" id="interp_api_model" class="text_pole" placeholder="gpt-4o-mini">
+                        </div>
+                        <div class="interp__field">
+                            <label for="interp_api_temp">온도</label>
+                            <input type="number" id="interp_api_temp" class="text_pole" min="0" max="2" step="0.1">
+                        </div>
+                    </div>
+                </div>
+                <div class="interp__grid2">
+                    <div class="interp__field">
+                        <label for="interp_tokens">응답 토큰 한도</label>
+                        <input type="number" id="interp_tokens" class="text_pole" min="512" max="65536" step="512">
+                    </div>
+                    <div class="interp__field interp__field--btn">
+                        <div class="menu_button" id="interp_api_test">
+                            <i class="fa-solid fa-tower-broadcast"></i><span>연결 테스트</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="interp__hint">
+                    번역은 메인 생성 파이프라인을 점유하지 않아 <b>번역 중에도 채팅을 계속</b>할 수 있습니다.
+                    저렴한 보조 모델(예: 소형·플래시급)을 커스텀 API로 연결하면 비용을 크게 아낄 수 있습니다.
+                </div>
+            </section>
+
+            <!-- ===== 고급 ===== -->
+            <section class="interp__panel" data-panel="advanced">
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_cache">
+                    <span>번역 기억(캐시) 사용 <small>같은 문단은 다시 번역하지 않음 — 수정·스와이프 시 비용 절감</small></span>
+                </label>
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_seal_macros">
+                    <span>{{매크로}} 봉인 <small>매크로 구문을 번역에서 보호</small></span>
+                </label>
+                <label class="checkbox_label">
+                    <input type="checkbox" id="interp_structure_retry">
+                    <span>형식 검증 재시도 <small>봉인 마커가 유실되면 한 번 더 시도</small></span>
+                </label>
+                <div class="interp__field">
+                    <label for="interp_context_pairs">문맥 쌍 수 <small>직전 원문·번역 몇 쌍을 참고로 첨부할지 (0–6)</small></label>
+                    <input type="number" id="interp_context_pairs" class="text_pole" min="0" max="6" step="1">
+                </div>
+                <div class="interp__field">
+                    <label for="interp_seal_tags">번역 제외 태그 <small>통째로 보호할 HTML 태그명, 쉼표 구분</small></label>
+                    <input type="text" id="interp_seal_tags" class="text_pole" placeholder="예: status, statusbar, style">
+                </div>
+                <div class="interp__hint">
+                    코드 블록·이미지·URL·HTML 주석은 항상 자동으로 봉인됩니다.
+                    상태창처럼 번역하면 안 되는 커스텀 태그가 있다면 위에 태그명을 적어주세요.
+                </div>
+
+                <div class="interp__section-head">
+                    <div>
+                        <h4>번역 프롬프트</h4>
+                        <p>번역가에게 주는 시스템 프롬프트를 직접 수정할 수 있습니다.</p>
+                    </div>
+                    <div class="interp__actions">
+                        <div class="menu_button" id="interp_prompt_reset" title="기본 프롬프트로 되돌립니다.">
+                            <i class="fa-solid fa-rotate-left"></i><span>기본값 복원</span>
+                        </div>
+                    </div>
+                </div>
+                <textarea id="interp_prompt_template" class="text_pole interp__prompt" rows="14" spellcheck="false"></textarea>
+                <div class="interp__hint">
+                    아래 매크로는 번역 방향에 따라 자동 치환되므로 그대로 두세요.<br>
+                    <code>{{source_lang}}</code> 원문 언어 · <code>{{target_lang}}</code> 번역 언어 ·
+                    <code>{{pair_notes}}</code> 언어쌍별 존댓말/경어 노트<br>
+                    용어집·말투 카드·독자 지시문·본문은 요청 시 프롬프트 뒤에 자동으로 붙습니다.
+                </div>
+            </section>
+
+            <!-- ===== 도구 ===== -->
+            <section class="interp__panel" data-panel="tools">
+                <div class="interp__tools">
+                    <div class="menu_button" id="interp_translate_input" title="입력창의 글을 모델어로 번역해 바꿔넣습니다.">
+                        <i class="fa-solid fa-keyboard"></i><span>입력창 번역</span>
+                    </div>
+                    <div class="menu_button" id="interp_batch" title="아직 번역되지 않은 AI 응답을 전부 번역합니다.">
+                        <i class="fa-solid fa-layer-group"></i><span>채팅 전체 번역</span>
+                    </div>
+                    <div class="menu_button" id="interp_clear_display" title="이 채팅의 번역 표시를 모두 지웁니다. 원문은 그대로입니다.">
+                        <i class="fa-solid fa-broom"></i><span>번역 표시 지우기</span>
+                    </div>
+                    <div class="menu_button" id="interp_clear_cache" title="이 채팅의 번역 기억(캐시)을 비웁니다.">
+                        <i class="fa-solid fa-eraser"></i><span>캐시 비우기</span>
+                    </div>
+                </div>
+                <div class="interp__field">
+                    <label>이 채팅의 번역 통계</label>
+                    <div id="interp_stats" class="interp__stats">—</div>
+                </div>
+                <div class="interp__hint">
+                    슬래시 명령: <code>/interp</code> (켜기/끄기) · <code>/interp-msg 번호</code> (개별 번역) · <code>/interp-chat</code> (일괄 번역)
+                </div>
+            </section>
+
+        </div>
+    </div>
+</div>

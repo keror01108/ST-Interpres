@@ -34,6 +34,7 @@ import { ARGUMENT_TYPE, SlashCommandArgument } from "../../../slash-commands/Sla
 
 const MODULE_NAME = 'interpres';
 const PROMPT_REV = 2;
+let _skipNextUpdate = false;
 
 /* ============================================================
  * 언어 목록
@@ -852,6 +853,7 @@ async function toggleOrTranslate(mesId) {
             delete message.extra.reasoning_display_text;
             updateReasoningUI(Number(mesId));
         }
+        _skipNextUpdate = true;
         updateMessageBlock(Number(mesId), message);
         await getContext().saveChat();
         decorateMessages();
@@ -950,6 +952,7 @@ async function openComparePopup(mesId) {
         } else {
             delete message.extra.display_text;
         }
+        _skipNextUpdate = true;
         updateMessageBlock(Number(mesId), message);
         await getContext().saveChat();
     }
@@ -1401,12 +1404,12 @@ function bindEvents() {
     });
 
     eventSource.on(event_types.MESSAGE_UPDATED, async (mesId) => {
+        if (_skipNextUpdate) { _skipNextUpdate = false; return; }
         const st = getSettings();
         if (!st.enabled) return;
         const m = chat[mesId];
         if (!m || m.is_system) return;
         if (m.is_user) return;
-        // 수정된 메시지: 번역 표시가 있었으면 문단 캐시를 살려 재번역
         if (m.extra?.display_text || st.autoIn) {
             if (m.extra?.display_text) delete m.extra.display_text;
             await translateIncoming(mesId, { force: !st.autoIn });

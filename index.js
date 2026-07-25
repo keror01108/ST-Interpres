@@ -68,8 +68,8 @@ const DEFAULT_SETTINGS = {
     sealTags: '',            // 번역에서 통째로 제외할 HTML 태그명 (쉼표 구분)
     readerNote: '',          // 독자 지시문
     promptTemplate: '',      // 커스텀 시스템 프롬프트 (비어 있으면 기본 틀 사용)
-    glossary: [],            // [{ id, src, dst }]
-    voiceCards: [],          // [{ id, name, style }]
+    glossary: [],            // (구버전 전역 저장분) — 이제 챗방별 저장(getBook), 최초 1회 이전 시드로만 사용
+    voiceCards: [],          // (구버전 전역 저장분) — 위와 동일
     // 번역 모델 연결
     apiMode: 'current',      // current | profile | custom
     profileId: '',
@@ -103,6 +103,30 @@ function getStore() {
     if (!store.blocks) store.blocks = {};
     if (!store.wholes) store.wholes = {};
     if (!store.stats) store.stats = { calls: 0, hits: 0, chars: 0 };
+    return store;
+}
+
+/**
+ * 용어집·말투 카드 — 챗방별 저장.
+ * 이야기마다 등장인물과 고유명사가 다르므로 chat_metadata에 담아 챗방 단위로 분리한다.
+ * 구버전(전역 설정)에 쌓아 둔 항목은 이 챗을 처음 열 때 한 번 복사해 온다 —
+ * 이후로는 완전히 독립이라 한쪽을 고쳐도 다른 챗방에 영향이 없다.
+ */
+function getBook() {
+    const store = getStore();
+    if (!Array.isArray(store.glossary)) store.glossary = [];
+    if (!Array.isArray(store.voiceCards)) store.voiceCards = [];
+    if (!store.bookSeeded) {
+        const s = getSettings();
+        if (!store.glossary.length && Array.isArray(s.glossary) && s.glossary.length) {
+            store.glossary = structuredClone(s.glossary);
+        }
+        if (!store.voiceCards.length && Array.isArray(s.voiceCards) && s.voiceCards.length) {
+            store.voiceCards = structuredClone(s.voiceCards);
+        }
+        store.bookSeeded = true;
+        persistStore();
+    }
     return store;
 }
 
@@ -263,12 +287,13 @@ function buildUserPrompt(sealed, srcCode, dstCode, { contextLines = [], extraNot
     const dst = langName(dstCode);
     const parts = [];
 
-    const glossary = (s.glossary || []).filter(g => g.src && g.dst);
+    const book = getBook();
+    const glossary = (book.glossary || []).filter(g => g.src && g.dst);
     if (glossary.length) {
         parts.push(`[TERM SHEET — locked spellings]\n${glossary.map(g => `${g.src} = ${g.dst}`).join('\n')}`);
     }
 
-    const voices = (s.voiceCards || []).filter(v => v.name && v.style);
+    const voices = (book.voiceCards || []).filter(v => v.name && v.style);
     if (voices.length) {
         parts.push(`[VOICE CARDS — how each one talks]\n${voices.map(v => `${v.name}: ${v.style}`).join('\n')}`);
     }
@@ -497,8 +522,9 @@ function looksLikeLang(text, code) {
 
 function settingsFingerprint() {
     const s = getSettings();
-    const gl = (s.glossary || []).map(g => `${g.src}>${g.dst}`).join('|');
-    const vc = (s.voiceCards || []).map(v => `${v.name}>${v.style}`).join('|');
+    const book = getBook();
+    const gl = (book.glossary || []).map(g => `${g.src}>${g.dst}`).join('|');
+    const vc = (book.voiceCards || []).map(v => `${v.name}>${v.style}`).join('|');
     const pt = getStringHash(effectivePromptTemplate());
     return getStringHash(`${PROMPT_REV}|${s.toneDial}|${s.readerNote}|${pt}|${gl}|${vc}`);
 }
@@ -1001,18 +1027,18 @@ async function scanVoiceCards() {
         const json = parseJsonLoose(raw);
         const voices = Array.isArray(json?.voices) ? json.voices : [];
         if (!voices.length) { toastr.warning('말투를 추출하지 못했습니다.'); return; }
-        const s = getSettings();
+        const book = getBook();
         let added = 0;
         for (const v of voices) {
             const name = String(v.name || '').trim();
             const style = String(v.style || '').trim();
             if (!name || !style) continue;
-            const existing = s.voiceCards.find(c => c.name === name);
+            const existing = book.voiceCards.find(c => c.name === name);
             if (existing) existing.style = style;
-            else s.voiceCards.push({ id: uuidv4(), name, style });
+            else book.voiceCards.push({ id: uuidv4(), name, style });
             added++;
         }
-        saveSettingsDebounced();
+        persistStore();
         renderVoiceCards();
         toastr.success(`말투 카드 ${added}개 갱신`, 'Interpres');
     } catch (e) {
@@ -1031,16 +1057,17 @@ async function scanGlossary() {
         const json = parseJsonLoose(raw);
         const terms = Array.isArray(json?.terms) ? json.terms : [];
         if (!terms.length) { toastr.warning('용어를 추출하지 못했습니다.'); return; }
+        const book = getBook();
         let added = 0;
         for (const t of terms) {
             const src = String(t.src || '').trim();
             const dst = String(t.dst || '').trim();
             if (!src || !dst) continue;
-            if (s.glossary.some(g => g.src === src)) continue;
-            s.glossary.push({ id: uuidv4(), src, dst });
+            if (book.glossary.some(g => g.src === src)) continue;
+            book.glossary.push({ id: uuidv4(), src, dst });
             added++;
         }
-        saveSettingsDebounced();
+        persistStore();
         renderGlossary();
         toastr.success(`용어 ${added}개 추가 (중복 제외)`, 'Interpres');
     } catch (e) {
@@ -1088,13 +1115,13 @@ function updateStatsUI() {
 }
 
 function renderGlossary() {
-    const s = getSettings();
+    const book = getBook();
     const $list = $('#interp_glossary_list').empty();
-    if (!s.glossary.length) {
-        $list.append('<div class="interp__empty">등록된 용어가 없습니다. 직접 추가하거나 자동 수집을 눌러보세요.</div>');
+    if (!book.glossary.length) {
+        $list.append('<div class="interp__empty">등록된 용어가 없습니다. 직접 추가하거나 자동 수집을 눌러보세요. (용어집은 챗방별로 저장됩니다)</div>');
         return;
     }
-    for (const g of s.glossary) {
+    for (const g of book.glossary) {
         const $row = $(`
         <div class="interp__row" data-id="${g.id}">
             <input type="text" class="text_pole interp__gsrc" placeholder="원문 표기">
@@ -1109,13 +1136,13 @@ function renderGlossary() {
 }
 
 function renderVoiceCards() {
-    const s = getSettings();
+    const book = getBook();
     const $list = $('#interp_voice_list').empty();
-    if (!s.voiceCards.length) {
-        $list.append('<div class="interp__empty">말투 카드가 없습니다. "말투 스캔"으로 캐릭터의 어투를 자동 분석할 수 있습니다.</div>');
+    if (!book.voiceCards.length) {
+        $list.append('<div class="interp__empty">말투 카드가 없습니다. "말투 스캔"으로 캐릭터의 어투를 자동 분석할 수 있습니다. (말투 카드는 챗방별로 저장됩니다)</div>');
         return;
     }
-    for (const v of s.voiceCards) {
+    for (const v of book.voiceCards) {
         const $card = $(`
         <div class="interp__voice" data-id="${v.id}">
             <div class="interp__voice-head">
@@ -1246,49 +1273,49 @@ function bindUI() {
         }
     });
 
-    // 용어집
+    // 용어집 (챗방별 저장)
     $('#interp_glossary_add').on('click', () => {
-        getSettings().glossary.push({ id: uuidv4(), src: '', dst: '' });
-        saveSettingsDebounced();
+        getBook().glossary.push({ id: uuidv4(), src: '', dst: '' });
+        persistStore();
         renderGlossary();
     });
     $('#interp_glossary_scan').on('click', scanGlossary);
     $(document).on('change', '#interp_glossary_list .interp__gsrc, #interp_glossary_list .interp__gdst', function () {
         const id = $(this).closest('.interp__row').data('id');
-        const g = getSettings().glossary.find(x => x.id === id);
+        const g = getBook().glossary.find(x => x.id === id);
         if (!g) return;
         g[$(this).hasClass('interp__gsrc') ? 'src' : 'dst'] = String($(this).val()).trim();
-        saveSettingsDebounced();
+        persistStore();
     });
     $(document).on('click', '#interp_glossary_list .interp__del', async function () {
         const id = $(this).closest('.interp__row').data('id');
-        const st = getSettings();
-        st.glossary = st.glossary.filter(x => x.id !== id);
-        saveSettingsDebounced();
+        const book = getBook();
+        book.glossary = book.glossary.filter(x => x.id !== id);
+        persistStore();
         renderGlossary();
     });
 
-    // 말투 카드
+    // 말투 카드 (챗방별 저장)
     $('#interp_voice_add').on('click', () => {
-        getSettings().voiceCards.push({ id: uuidv4(), name: '', style: '' });
-        saveSettingsDebounced();
+        getBook().voiceCards.push({ id: uuidv4(), name: '', style: '' });
+        persistStore();
         renderVoiceCards();
     });
     $('#interp_voice_scan').on('click', scanVoiceCards);
     $(document).on('change', '#interp_voice_list .interp__vname, #interp_voice_list .interp__vstyle', function () {
         const id = $(this).closest('.interp__voice').data('id');
-        const v = getSettings().voiceCards.find(x => x.id === id);
+        const v = getBook().voiceCards.find(x => x.id === id);
         if (!v) return;
         v[$(this).hasClass('interp__vname') ? 'name' : 'style'] = String($(this).val()).trim();
-        saveSettingsDebounced();
+        persistStore();
     });
     $(document).on('click', '#interp_voice_list .interp__del', async function () {
         const id = $(this).closest('.interp__voice').data('id');
         const ok = await callGenericPopup('이 말투 카드를 삭제할까요?', POPUP_TYPE.CONFIRM);
         if (!ok) return;
-        const st = getSettings();
-        st.voiceCards = st.voiceCards.filter(x => x.id !== id);
-        saveSettingsDebounced();
+        const book = getBook();
+        book.voiceCards = book.voiceCards.filter(x => x.id !== id);
+        persistStore();
         renderVoiceCards();
     });
 
@@ -1420,6 +1447,9 @@ function bindEvents() {
         getStore();
         decorateMessages();
         updateStatsUI();
+        // 용어집·말투 카드는 챗방별 — 화면 목록을 이 챗의 것으로 갱신
+        renderGlossary();
+        renderVoiceCards();
     });
 }
 

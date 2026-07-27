@@ -520,13 +520,50 @@ function looksLikeLang(text, code) {
  * 캐시 키
  * ============================================================ */
 
+/**
+ * 캐시 키에 들어가는 지문 — 프롬프트 형식 개정(PROMPT_REV)만 반영한다.
+ * 톤·독자 지시문·용어집·말투 카드·프롬프트 수정은 일부러 뺐다: 자잘한 설정을
+ * 고칠 때마다 챗 전체의 번역 기억이 통째로 무효화되는 비용이 훨씬 크다.
+ * 바뀐 설정은 새로 번역되는 메시지와 🔄 재번역(캐시 무시 후 덮어씀)부터 반영된다.
+ */
 function settingsFingerprint() {
+    return getStringHash(`rev${PROMPT_REV}`);
+}
+
+/** 구버전(v1.1.0 이하) 지문 — 설정 전체를 섞던 공식. 캐시 키 이전에만 쓴다 */
+function legacyFingerprint() {
     const s = getSettings();
     const book = getBook();
     const gl = (book.glossary || []).map(g => `${g.src}>${g.dst}`).join('|');
     const vc = (book.voiceCards || []).map(v => `${v.name}>${v.style}`).join('|');
     const pt = getStringHash(effectivePromptTemplate());
     return getStringHash(`${PROMPT_REV}|${s.toneDial}|${s.readerNote}|${pt}|${gl}|${vc}`);
+}
+
+/**
+ * 기존 번역 기억을 새 키 체계로 한 번만 옮긴다.
+ * 구버전 키의 지문은 "현재 설정"으로 계산한 값과 일치하는 것만 복구 가능하다 —
+ * 이미 설정을 바꿔 고아가 된 항목은 그대로 두면 정리(prune)가 걷어간다.
+ */
+function migrateCacheKeys() {
+    const store = getStore();
+    if (store.fpMigrated) return;
+    const from = String(legacyFingerprint());
+    const to = String(settingsFingerprint());
+    if (from !== to) {
+        for (const bag of [store.blocks, store.wholes]) {
+            for (const key of Object.keys(bag)) {
+                const parts = key.split('|');
+                if (parts.length === 3 && parts[1] === from) {
+                    const nk = `${parts[0]}|${to}|${parts[2]}`;
+                    if (!bag[nk]) bag[nk] = bag[key];
+                    delete bag[key];
+                }
+            }
+        }
+    }
+    store.fpMigrated = true;
+    persistStore();
 }
 
 function cacheKey(text, srcCode, dstCode, fp) {
@@ -617,6 +654,7 @@ async function translateText(rawText, srcCode, dstCode, { mesId = -1, fresh = fa
     const s = getSettings();
     const text = String(rawText ?? '');
     if (!text.trim()) return text;
+    migrateCacheKeys(); // 채팅 전환 이벤트를 놓친 경우 대비 (플래그로 1회만 실행)
 
     const { sealed, vault } = sealText(text);
     if (!hasTranslatable(sealed)) return text;
@@ -1445,6 +1483,7 @@ function bindEvents() {
 
     eventSource.on(event_types.CHAT_CHANGED, () => {
         getStore();
+        migrateCacheKeys();
         decorateMessages();
         updateStatsUI();
         // 용어집·말투 카드는 챗방별 — 화면 목록을 이 챗의 것으로 갱신

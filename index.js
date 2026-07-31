@@ -68,7 +68,7 @@ const DEFAULT_SETTINGS = {
     sealTags: '',            // 번역에서 통째로 제외할 HTML 태그명 (쉼표 구분)
     readerNote: '',          // 독자 지시문
     promptTemplate: '',      // 커스텀 시스템 프롬프트 (비어 있으면 기본 틀 사용)
-    glossary: [],            // (구버전 전역 저장분) — 이제 챗방별 저장(getBook), 최초 1회 이전 시드로만 사용
+    glossary: [],            // (구버전 전역 저장분) — 보관만 한다. 번역엔 절대 안 쓰이고, 패널에서 직접 [가져오기] 해야 챗방으로 들어온다
     voiceCards: [],          // (구버전 전역 저장분) — 위와 동일
     // 번역 모델 연결
     apiMode: 'current',      // current | profile | custom
@@ -95,6 +95,15 @@ function getSettings() {
  * 채팅별 저장소 (번역 기억)
  * ============================================================ */
 
+function currentChatId() {
+    try {
+        const id = getContext()?.chatId;
+        return (id === undefined || id === null || id === '') ? null : String(id);
+    } catch {
+        return null;
+    }
+}
+
 function getStore() {
     if (!chat_metadata[MODULE_NAME]) {
         chat_metadata[MODULE_NAME] = { v: 1, blocks: {}, wholes: {}, stats: { calls: 0, hits: 0, chars: 0 } };
@@ -103,35 +112,180 @@ function getStore() {
     if (!store.blocks) store.blocks = {};
     if (!store.wholes) store.wholes = {};
     if (!store.stats) store.stats = { calls: 0, hits: 0, chars: 0 };
+    if (!Array.isArray(store.glossary)) store.glossary = [];
+    if (!Array.isArray(store.voiceCards)) store.voiceCards = [];
+    isolateBook(store);
     return store;
+}
+
+/** 항목 비교 키 — 사용자 입력에 없는 구분자로 묶는다 */
+function termKey(g) { return `${g?.src ?? ''}\u001f${g?.dst ?? ''}`; }
+function cardKey(v) { return `${v?.name ?? ''}\u001f${v?.style ?? ''}`; }
+
+/* 딸려온 목록을 버리지 않고 격리해 둔다. 프롬프트엔 절대 실리지 않고,
+ * 설정 패널의 [가져오기]를 눌러야만 이 챗방 목록으로 들어온다. */
+function stashCarry(store, glossary, voiceCards, from) {
+    if (!glossary.length && !voiceCards.length) return;
+    const carry = store.carryOver || { glossary: [], voiceCards: [], src: from };
+    if (carry.src !== from) carry.src = 'mixed';
+    const gseen = new Set(carry.glossary.map(termKey));
+    const vseen = new Set(carry.voiceCards.map(cardKey));
+    for (const g of glossary) {
+        if (gseen.has(termKey(g))) continue;
+        carry.glossary.push(g);
+        gseen.add(termKey(g));
+    }
+    for (const v of voiceCards) {
+        if (vseen.has(cardKey(v))) continue;
+        carry.voiceCards.push(v);
+        vseen.add(cardKey(v));
+    }
+    store.carryOver = carry;
+}
+
+/**
+ * 구버전(v1.2.0 이하)은 챗방을 처음 열 때 전역 설정의 목록을 그 챗방으로 복사했다.
+ * 그 탓에 이미 오염된 챗방이 있으므로, 전역 목록과 글자까지 똑같은 항목만 한 번 골라내
+ * 격리한다. 직접 쓴 항목이 우연히 겹쳐 딸려 나가도 [가져오기]로 되돌릴 수 있다.
+ */
+function unseedLegacy(store) {
+    const s = getSettings();
+    const legacyG = Array.isArray(s.glossary) ? s.glossary : [];
+    const legacyV = Array.isArray(s.voiceCards) ? s.voiceCards : [];
+    if (!legacyG.length && !legacyV.length) return;
+    const gk = new Set(legacyG.map(termKey));
+    const vk = new Set(legacyV.map(cardKey));
+    const pulledG = store.glossary.filter(g => gk.has(termKey(g)));
+    const pulledV = store.voiceCards.filter(v => vk.has(cardKey(v)));
+    if (!pulledG.length && !pulledV.length) return;
+    store.glossary = store.glossary.filter(g => !gk.has(termKey(g)));
+    store.voiceCards = store.voiceCards.filter(v => !vk.has(cardKey(v)));
+    stashCarry(store, pulledG, pulledV, 'legacy');
+}
+
+/**
+ * 용어집·말투 카드는 철저히 챗방별이다.
+ * chat_metadata는 새 챗 만들기·분기·복제 과정에서 직전 챗방의 것이 그대로 딸려오는 일이 있어,
+ * 이 저장소가 어느 챗방의 것인지 도장을 찍어 두고 다르면 목록을 비워 격리한다.
+ * (번역 기억(캐시)은 같은 원문이면 같은 번역이라 해가 없고 비용을 아끼므로 그대로 둔다.)
+ */
+function isolateBook(store) {
+    const id = currentChatId();
+    if (!id) return;                      // 챗이 아직 안 열린 상태 — 손대지 않는다
+    if (store.chatId === id) return;
+
+    if (store.chatId === undefined) {
+        // 이 버전 이전부터 있던 챗방: 현재 목록은 이 챗방 것으로 인정하되,
+        // 구버전이 전역에서 퍼 온 흔적만 걷어낸다.
+        if (store.bookSeeded) unseedLegacy(store);
+        store.chatId = id;
+        delete store.bookSeeded;
+        persistStore();
+        return;
+    }
+
+    // 다른 챗방의 메타데이터가 딸려왔다
+    const carriedG = store.glossary;
+    const carriedV = store.voiceCards;
+    store.glossary = [];
+    store.voiceCards = [];
+    stashCarry(store, carriedG, carriedV, 'chat');
+    store.chatId = id;
+    delete store.bookSeeded;
+    persistStore();
 }
 
 /**
  * 용어집·말투 카드 — 챗방별 저장.
  * 이야기마다 등장인물과 고유명사가 다르므로 chat_metadata에 담아 챗방 단위로 분리한다.
- * 구버전(전역 설정)에 쌓아 둔 항목은 이 챗을 처음 열 때 한 번 복사해 온다 —
- * 이후로는 완전히 독립이라 한쪽을 고쳐도 다른 챗방에 영향이 없다.
+ * 어떤 경우에도 다른 챗방·전역 설정의 항목이 저절로 섞여 들어오지 않는다.
  */
 function getBook() {
+    return getStore();
+}
+
+/** 이 챗방으로 가져올 수 있는 격리된 목록 (다른 챗방에서 딸려왔거나 구버전 전역에 남은 것) */
+function pendingCarry() {
     const store = getStore();
-    if (!Array.isArray(store.glossary)) store.glossary = [];
-    if (!Array.isArray(store.voiceCards)) store.voiceCards = [];
-    if (!store.bookSeeded) {
-        const s = getSettings();
-        if (!store.glossary.length && Array.isArray(s.glossary) && s.glossary.length) {
-            store.glossary = structuredClone(s.glossary);
-        }
-        if (!store.voiceCards.length && Array.isArray(s.voiceCards) && s.voiceCards.length) {
-            store.voiceCards = structuredClone(s.voiceCards);
-        }
-        store.bookSeeded = true;
-        persistStore();
+    const c = store.carryOver;
+    if (c && ((c.glossary || []).length || (c.voiceCards || []).length)) {
+        return { from: 'quarantine', src: c.src || 'chat', glossary: c.glossary || [], voiceCards: c.voiceCards || [] };
     }
-    return store;
+    if (store.legacyDone) return null;    // 이 챗방에선 이미 가져왔거나 덮어 뒀다
+    const s = getSettings();
+    const g = Array.isArray(s.glossary) ? s.glossary : [];
+    const v = Array.isArray(s.voiceCards) ? s.voiceCards : [];
+    if (g.length || v.length) return { from: 'legacy', glossary: g, voiceCards: v };
+    return null;
+}
+
+/** 격리된 목록을 이 챗방 목록으로 합친다 (용어는 원문 표기, 카드는 이름 기준으로 중복 제외) */
+async function importCarry() {
+    const carry = pendingCarry();
+    if (!carry) return;
+    const book = getBook();
+    let ng = 0, nv = 0;
+    for (const g of carry.glossary) {
+        if (!g.src || book.glossary.some(x => x.src === g.src)) continue;
+        book.glossary.push({ id: uuidv4(), src: g.src, dst: g.dst });
+        ng++;
+    }
+    for (const v of carry.voiceCards) {
+        if (!v.name || book.voiceCards.some(x => x.name === v.name)) continue;
+        book.voiceCards.push({ id: uuidv4(), name: v.name, style: v.style });
+        nv++;
+    }
+    // 구버전 전역 잔재를 다룬 챗방에선 같은 안내가 다시 뜨지 않게 한다
+    if (carry.from === 'legacy' || carry.src === 'legacy' || carry.src === 'mixed') book.legacyDone = true;
+    if (carry.from !== 'legacy') delete book.carryOver;
+    await persistBook();
+    renderGlossary();
+    renderVoiceCards();
+    toastr.success(`용어 ${ng}개 · 말투 카드 ${nv}개를 이 챗방으로 가져왔습니다. (중복 제외)`, 'Interpres');
+}
+
+/** 격리된 목록을 버린다. 전역 잔재는 확인 후 완전히 지워 다시는 뜨지 않게 한다 */
+async function dropCarry() {
+    const carry = pendingCarry();
+    if (!carry) return;
+    const book = getBook();
+    if (carry.from === 'legacy') {
+        const ok = await callGenericPopup(
+            '구버전 전역 목록을 완전히 삭제할까요? 모든 챗방에서 다시 뜨지 않습니다.',
+            POPUP_TYPE.CONFIRM,
+        );
+        if (!ok) return;
+        const s = getSettings();
+        s.glossary = [];
+        s.voiceCards = [];
+        saveSettingsDebounced();
+    } else {
+        if (carry.src === 'legacy' || carry.src === 'mixed') book.legacyDone = true;
+        delete book.carryOver;
+    }
+    await persistBook();
+    renderGlossary();
+    renderVoiceCards();
+    toastr.info('격리된 목록을 버렸습니다.', 'Interpres');
 }
 
 function persistStore() {
     saveMetadataDebounced();
+}
+
+/**
+ * 용어집·말투 카드 편집은 즉시 저장한다.
+ * 디바운스(1초)에만 맡기면 편집 직후 챗방을 옮길 때 그 챗방 편집분이 통째로 날아간다.
+ */
+async function persistBook() {
+    saveMetadataDebounced();
+    try {
+        const ctx = getContext();
+        if (typeof ctx.saveMetadata === 'function') await ctx.saveMetadata();
+        else await ctx.saveChat();
+    } catch (e) {
+        console.debug(`[${MODULE_NAME}] 메타데이터 즉시 저장 실패`, e);
+    }
 }
 
 // 번역 기억이 무한히 자라지 않도록 오래된 항목부터 정리
@@ -1076,8 +1230,8 @@ async function scanVoiceCards() {
             else book.voiceCards.push({ id: uuidv4(), name, style });
             added++;
         }
-        persistStore();
         renderVoiceCards();
+        await persistBook();
         toastr.success(`말투 카드 ${added}개 갱신`, 'Interpres');
     } catch (e) {
         toastr.error(String(e.message || e), '말투 스캔 실패');
@@ -1105,8 +1259,8 @@ async function scanGlossary() {
             book.glossary.push({ id: uuidv4(), src, dst });
             added++;
         }
-        persistStore();
         renderGlossary();
+        await persistBook();
         toastr.success(`용어 ${added}개 추가 (중복 제외)`, 'Interpres');
     } catch (e) {
         toastr.error(String(e.message || e), '용어 스캔 실패');
@@ -1152,8 +1306,30 @@ function updateStatsUI() {
     $('#interp_stats').text(`LLM 호출 ${st.calls || 0}회 · 캐시 적중 ${st.hits || 0}회 (${rate}%) · 누적 ${Math.round((st.chars || 0) / 1000)}k자`);
 }
 
+/** 다른 챗방/구버전 전역에서 딸려온 목록 안내 — 사용자가 누르기 전엔 번역에 쓰이지 않는다 */
+function renderCarryNotice() {
+    const $box = $('#interp_carry_notice').empty();
+    if (!$box.length) return;
+    const carry = pendingCarry();
+    if (!carry) { $box.hide(); return; }
+    const label = { legacy: '구버전 전역 설정', chat: '다른 챗방', mixed: '다른 챗방·구버전 전역 설정' };
+    const where = carry.from === 'legacy' ? label.legacy : (label[carry.src] || label.chat);
+    $box.show().append($(`
+        <div class="interp__carry">
+            <div class="interp__carry-text">
+                <b>${where}</b>에 있던 용어 ${carry.glossary.length}개 · 말투 카드 ${carry.voiceCards.length}개를 격리했습니다.
+                이 목록은 번역에 쓰이지 않습니다. 이 챗방에서 쓰려면 가져오세요.
+            </div>
+            <div class="interp__actions">
+                <div class="menu_button" id="interp_carry_import"><i class="fa-solid fa-download"></i><span>가져오기</span></div>
+                <div class="menu_button" id="interp_carry_drop"><i class="fa-solid fa-trash-can"></i><span>버리기</span></div>
+            </div>
+        </div>`));
+}
+
 function renderGlossary() {
     const book = getBook();
+    renderCarryNotice();
     const $list = $('#interp_glossary_list').empty();
     if (!book.glossary.length) {
         $list.append('<div class="interp__empty">등록된 용어가 없습니다. 직접 추가하거나 자동 수집을 눌러보세요. (용어집은 챗방별로 저장됩니다)</div>');
@@ -1311,41 +1487,69 @@ function bindUI() {
         }
     });
 
+    // 딸려온 목록 격리 안내
+    $(document).on('click', '#interp_carry_import', importCarry);
+    $(document).on('click', '#interp_carry_drop', dropCarry);
+
     // 용어집 (챗방별 저장)
-    $('#interp_glossary_add').on('click', () => {
+    $('#interp_glossary_add').on('click', async () => {
         getBook().glossary.push({ id: uuidv4(), src: '', dst: '' });
-        persistStore();
         renderGlossary();
+        await persistBook();
     });
     $('#interp_glossary_scan').on('click', scanGlossary);
-    $(document).on('change', '#interp_glossary_list .interp__gsrc, #interp_glossary_list .interp__gdst', function () {
+    $('#interp_glossary_clear').on('click', async () => {
+        const book = getBook();
+        if (!book.glossary.length) return;
+        const ok = await callGenericPopup(
+            `이 챗방의 용어 ${book.glossary.length}개를 모두 삭제할까요? 다른 챗방에는 영향이 없습니다.`,
+            POPUP_TYPE.CONFIRM,
+        );
+        if (!ok) return;
+        book.glossary = [];
+        renderGlossary();
+        await persistBook();
+    });
+    $(document).on('change', '#interp_glossary_list .interp__gsrc, #interp_glossary_list .interp__gdst', async function () {
         const id = $(this).closest('.interp__row').data('id');
         const g = getBook().glossary.find(x => x.id === id);
         if (!g) return;
         g[$(this).hasClass('interp__gsrc') ? 'src' : 'dst'] = String($(this).val()).trim();
-        persistStore();
+        await persistBook();
     });
     $(document).on('click', '#interp_glossary_list .interp__del', async function () {
         const id = $(this).closest('.interp__row').data('id');
         const book = getBook();
         book.glossary = book.glossary.filter(x => x.id !== id);
-        persistStore();
         renderGlossary();
+        await persistBook();
     });
 
     // 말투 카드 (챗방별 저장)
-    $('#interp_voice_add').on('click', () => {
+    $('#interp_voice_add').on('click', async () => {
         getBook().voiceCards.push({ id: uuidv4(), name: '', style: '' });
-        persistStore();
         renderVoiceCards();
+        await persistBook();
     });
     $('#interp_voice_scan').on('click', scanVoiceCards);
-    $(document).on('change', '#interp_voice_list .interp__vname, #interp_voice_list .interp__vstyle', function () {
+    $('#interp_voice_clear').on('click', async () => {
+        const book = getBook();
+        if (!book.voiceCards.length) return;
+        const ok = await callGenericPopup(
+            `이 챗방의 말투 카드 ${book.voiceCards.length}개를 모두 삭제할까요? 다른 챗방에는 영향이 없습니다.`,
+            POPUP_TYPE.CONFIRM,
+        );
+        if (!ok) return;
+        book.voiceCards = [];
+        renderVoiceCards();
+        await persistBook();
+    });
+    $(document).on('change', '#interp_voice_list .interp__vname, #interp_voice_list .interp__vstyle', async function () {
         const id = $(this).closest('.interp__voice').data('id');
         const v = getBook().voiceCards.find(x => x.id === id);
         if (!v) return;
         v[$(this).hasClass('interp__vname') ? 'name' : 'style'] = String($(this).val()).trim();
-        persistStore();
+        await persistBook();
     });
     $(document).on('click', '#interp_voice_list .interp__del', async function () {
         const id = $(this).closest('.interp__voice').data('id');
@@ -1353,8 +1557,8 @@ function bindUI() {
         if (!ok) return;
         const book = getBook();
         book.voiceCards = book.voiceCards.filter(x => x.id !== id);
-        persistStore();
         renderVoiceCards();
+        await persistBook();
     });
 
     // 도구

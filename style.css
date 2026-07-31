@@ -140,6 +140,22 @@
 
 .interp__list { display: flex; flex-direction: column; gap: 6px; }
 
+/* 다른 챗방·구버전 전역에서 딸려온 목록 격리 안내 */
+.interp__carry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border: 1px solid var(--interp-accent);
+    border-radius: 8px;
+    background: var(--interp-soft);
+}
+
+.interp__carry-text { font-size: 0.82em; line-height: 1.5; flex: 1 1 220px; }
+
 .interp__empty {
     font-size: 0.82em;
     opacity: 0.6;

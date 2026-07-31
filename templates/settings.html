@@ -1,7 +1,7 @@
 <div id="interp_settings" class="interp">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b><i class="fa-solid fa-earth-asia"></i> Interpres — 이야기 통역사 <span class="interp__version">v1.2.0</span></b>
+            <b><i class="fa-solid fa-earth-asia"></i> Interpres — 이야기 통역사 <span class="interp__version">v1.2.1</span></b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
@@ -106,6 +106,7 @@
 
             <!-- ===== 용어·말투 ===== -->
             <section class="interp__panel" data-panel="style">
+                <div id="interp_carry_notice" style="display:none;"></div>
                 <div class="interp__section-head">
                     <div>
                         <h4>용어집</h4>
@@ -117,6 +118,9 @@
                         </div>
                         <div class="menu_button" id="interp_glossary_add">
                             <i class="fa-solid fa-plus"></i><span>추가</span>
+                        </div>
+                        <div class="menu_button" id="interp_glossary_clear" title="이 챗방의 용어를 모두 비웁니다.">
+                            <i class="fa-solid fa-trash-can"></i><span>비우기</span>
                         </div>
                     </div>
                 </div>
@@ -133,6 +137,9 @@
                         </div>
                         <div class="menu_button" id="interp_voice_add">
                             <i class="fa-solid fa-plus"></i><span>추가</span>
+                        </div>
+                        <div class="menu_button" id="interp_voice_clear" title="이 챗방의 말투 카드를 모두 비웁니다.">
+                            <i class="fa-solid fa-trash-can"></i><span>비우기</span>
                         </div>
                     </div>
                 </div>

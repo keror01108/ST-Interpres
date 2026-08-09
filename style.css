@@ -247,6 +247,19 @@
 .interp-compare label { font-size: 0.82em; font-weight: 600; opacity: 0.8; }
 .interp-compare textarea { width: 100%; resize: vertical; }
 
+/* ---------- 자료 덤프 (/interp-book) ---------- */
+
+.interp__dump {
+    max-height: 60vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    text-align: left;
+    font-size: 0.85em;
+    line-height: 1.5;
+    opacity: 0.9;
+}
+
 /* ---------- 모바일 ---------- */
 
 @media (max-width: 600px) {

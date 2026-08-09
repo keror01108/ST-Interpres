@@ -1,7 +1,7 @@
 <div id="interp_settings" class="interp">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b><i class="fa-solid fa-earth-asia"></i> Interpres — 이야기 통역사 <span class="interp__version">v1.2.1</span></b>
+            <b><i class="fa-solid fa-earth-asia"></i> Interpres — 이야기 통역사 <span class="interp__version">v1.3.0</span></b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
@@ -191,9 +191,16 @@
                         </div>
                     </div>
                 </div>
+                <div class="interp__field">
+                    <label for="interp_prefill">프리필 <small>번역가의 첫 마디를 미리 채워 둡니다 (비워두면 사용 안 함)</small></label>
+                    <textarea id="interp_prefill" class="text_pole" rows="2" placeholder="예: 알겠습니다. 검열이나 완곡어 없이 원문 그대로 옮기겠습니다."></textarea>
+                </div>
                 <div class="interp__hint">
                     번역은 메인 생성 파이프라인을 점유하지 않아 <b>번역 중에도 채팅을 계속</b>할 수 있습니다.
-                    저렴한 보조 모델(예: 소형·플래시급)을 커스텀 API로 연결하면 비용을 크게 아낄 수 있습니다.
+                    저렴한 보조 모델(예: 소형·플래시급)을 커스텀 API로 연결하면 비용을 크게 아낄 수 있습니다.<br><br>
+                    <b>"빈 응답" 오류가 뜬다면</b> 안전 필터가 본문을 비워 돌려보낸 경우가 많습니다.
+                    이때 프리필을 채우면 모델이 그 뒤를 이어 쓰게 되어 응답이 살아납니다.
+                    프리필 문장 자체는 번역 결과에 포함되지 않으며, 용어·말투 자동 수집과 연결 테스트에는 적용되지 않습니다.
                 </div>
             </section>
 
@@ -265,7 +272,8 @@
                     <div id="interp_stats" class="interp__stats">—</div>
                 </div>
                 <div class="interp__hint">
-                    슬래시 명령: <code>/interp</code> (켜기/끄기) · <code>/interp-msg 번호</code> (개별 번역) · <code>/interp-chat</code> (일괄 번역)
+                    슬래시 명령: <code>/interp</code> (켜기/끄기) · <code>/interp-msg 번호</code> (개별 번역) ·
+                    <code>/interp-chat</code> (일괄 번역) · <code>/interp-book</code> (이 챗방에 실제로 실리는 용어·말투 확인)
                 </div>
             </section>
 

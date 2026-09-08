@@ -339,6 +339,78 @@ async function dropCarry() {
     toastr.info('격리된 목록을 버렸습니다.', 'Interpres');
 }
 
+/* ============================================================
+ * 용어집·말투 카드 파일 내보내기 / 불러오기
+ * ============================================================ */
+
+function exportBook() {
+    const book = getBook();
+    const data = {
+        app: 'interpres',
+        kind: 'book',
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        glossary: (book.glossary || []).filter(g => g.src && g.dst).map(g => ({ src: g.src, dst: g.dst })),
+        voiceCards: (book.voiceCards || []).filter(v => v.name && v.style).map(v => ({ name: v.name, style: v.style })),
+    };
+    if (!data.glossary.length && !data.voiceCards.length) {
+        toastr.warning('내보낼 용어·말투 카드가 없습니다.', 'Interpres');
+        return;
+    }
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interpres-book-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toastr.success(`용어 ${data.glossary.length}개 · 말투 카드 ${data.voiceCards.length}개를 내보냈습니다.`, 'Interpres');
+}
+
+async function importBookFile(file) {
+    let data;
+    try {
+        data = JSON.parse(await file.text());
+    } catch {
+        toastr.error('JSON 파일을 읽을 수 없습니다.', 'Interpres');
+        return;
+    }
+    const inG = Array.isArray(data?.glossary) ? data.glossary : [];
+    const inV = Array.isArray(data?.voiceCards) ? data.voiceCards : [];
+    if (!inG.length && !inV.length) {
+        toastr.warning('파일에 용어·말투 카드가 없습니다.', 'Interpres');
+        return;
+    }
+    const ok = await callGenericPopup(
+        `용어 ${inG.length}개 · 말투 카드 ${inV.length}개를 <b>이 챗방</b>으로 불러올까요?<br>이미 있는 항목(같은 원문 표기 · 같은 이름)은 건너뜁니다.`,
+        POPUP_TYPE.CONFIRM, '', { okButton: '합치기', cancelButton: '취소' },
+    );
+    if (!ok) return;
+
+    const book = getBook();
+    let ng = 0, nv = 0;
+    for (const g of inG) {
+        const src = String(g?.src || '').trim();
+        const dst = String(g?.dst || '').trim();
+        if (!src || !dst || book.glossary.some(x => x.src === src)) continue;
+        book.glossary.push({ id: uuidv4(), src, dst });
+        ng++;
+    }
+    for (const v of inV) {
+        const name = String(v?.name || '').trim();
+        const style = String(v?.style || '').trim();
+        if (!name || !style || book.voiceCards.some(x => x.name === name)) continue;
+        book.voiceCards.push({ id: uuidv4(), name, style });
+        nv++;
+    }
+    renderGlossary();
+    renderVoiceCards();
+    await persistBook();
+    toastr.success(`용어 ${ng}개 · 말투 카드 ${nv}개를 불러왔습니다. (중복 제외)`, 'Interpres');
+}
+
 function persistStore() {
     saveMetadataDebounced();
 }
@@ -1656,6 +1728,14 @@ function bindUI() {
     // 딸려온 목록 격리 안내
     $(document).on('click', '#interp_carry_import', importCarry);
     $(document).on('click', '#interp_carry_drop', dropCarry);
+    // 용어집·말투 카드 파일 내보내기 / 불러오기
+    $('#interp_book_export').on('click', exportBook);
+    $('#interp_book_import').on('click', () => $('#interp_book_file').trigger('click'));
+    $('#interp_book_file').on('change', async function () {
+        const f = this.files?.[0];
+        this.value = '';          // 같은 파일을 다시 고를 수 있게 비운다
+        if (f) await importBookFile(f);
+    });
 
     // 용어집 (챗방별 저장)
     $('#interp_glossary_add').on('click', async () => {

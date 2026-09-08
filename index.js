@@ -1468,6 +1468,50 @@ function renderGlossary() {
     }
 }
 
+let charBookTarget = null;   // 그룹 채팅에서 편집 중인 캐릭터
+
+function activeCharKey() {
+    const keys = currentCharKeys();
+    if (!keys.length) return null;
+    return (charBookTarget && keys.includes(charBookTarget)) ? charBookTarget : keys[0];
+}
+
+function renderCharGlossary() {
+    const $list = $('#interp_charglossary_list').empty();
+    const $sel = $('#interp_charglossary_target').empty();
+    $('#interp_charglossary_enabled').prop('checked', !!getSettings().charGlossaryEnabled);
+
+    const keys = currentCharKeys();
+    if (!keys.length) {
+        $sel.hide();
+        $list.append('<div class="interp__empty">선택된 캐릭터가 없습니다. 캐릭터를 열면 이 목록이 나타납니다.</div>');
+        return;
+    }
+    for (const k of keys) $sel.append($('<option>').val(k).text(charLabel(k)));
+    keys.length > 1 ? $sel.show() : $sel.hide();
+
+    const key = activeCharKey();
+    $sel.val(key);
+
+    const list = getCharGlossary(key);
+    if (!list.length) {
+        $list.append(`<div class="interp__empty"><b>${$('<div>').text(charLabel(key)).html()}</b>에 등록된 용어가 없습니다.</div>`);
+        return;
+    }
+    for (const g of list) {
+        const $row = $(`
+        <div class="interp__row" data-id="${g.id}">
+            <input type="text" class="text_pole interp__cgsrc" placeholder="원문 표기">
+            <i class="fa-solid fa-arrow-right-long interp__arrow"></i>
+            <input type="text" class="text_pole interp__cgdst" placeholder="번역 표기">
+            <div class="menu_button interp__del" title="삭제"><i class="fa-solid fa-trash-can"></i></div>
+        </div>`);
+        $row.find('.interp__cgsrc').val(g.src);
+        $row.find('.interp__cgdst').val(g.dst);
+        $list.append($row);
+    }
+}
+
 function renderVoiceCards() {
     const book = getBook();
     const $list = $('#interp_voice_list').empty();
@@ -1528,6 +1572,7 @@ function syncUIFromSettings() {
     $('.interp__profile-row').toggle(s.apiMode === 'profile');
     refreshProfileOptions();
     renderGlossary();
+    renderCharGlossary();
     renderVoiceCards();
     updateStatsUI();
 }
@@ -1646,6 +1691,51 @@ function bindUI() {
         await persistBook();
     });
 
+    // 캐릭터별 용어집 (extension_settings 저장)
+    $('#interp_charglossary_enabled').on('change', function () {
+        getSettings().charGlossaryEnabled = $(this).prop('checked');
+        saveSettingsDebounced();
+    });
+    $('#interp_charglossary_target').on('change', function () {
+        charBookTarget = String($(this).val());
+        renderCharGlossary();
+    });
+    $('#interp_charglossary_add').on('click', () => {
+        const key = activeCharKey();
+        if (!key) { toastr.warning('먼저 캐릭터를 선택하세요.', 'Interpres'); return; }
+        getCharGlossary(key).push({ id: uuidv4(), src: '', dst: '' });
+        renderCharGlossary();
+        saveSettingsDebounced();
+    });
+    $('#interp_charglossary_clear').on('click', async () => {
+        const key = activeCharKey();
+        if (!key) return;
+        const list = getCharGlossary(key);
+        if (!list.length) return;
+        const ok = await callGenericPopup(
+            `${charLabel(key)}의 용어 ${list.length}개를 모두 삭제할까요? 이 캐릭터의 모든 챗방에 적용됩니다.`,
+            POPUP_TYPE.CONFIRM,
+        );
+        if (!ok) return;
+        getSettings().charGlossary[key] = [];
+        renderCharGlossary();
+        saveSettingsDebounced();
+    });
+    $(document).on('change', '#interp_charglossary_list .interp__cgsrc, #interp_charglossary_list .interp__cgdst', function () {
+        const id = $(this).closest('.interp__row').data('id');
+        const g = getCharGlossary(activeCharKey()).find(x => x.id === id);
+        if (!g) return;
+        g[$(this).hasClass('interp__cgsrc') ? 'src' : 'dst'] = String($(this).val()).trim();
+        saveSettingsDebounced();
+    });
+    $(document).on('click', '#interp_charglossary_list .interp__del', function () {
+        const key = activeCharKey();
+        const id = $(this).closest('.interp__row').data('id');
+        getSettings().charGlossary[key] = getCharGlossary(key).filter(x => x.id !== id);
+        renderCharGlossary();
+        saveSettingsDebounced();
+    });
+    
     // 말투 카드 (챗방별 저장)
     $('#interp_voice_add').on('click', async () => {
         getBook().voiceCards.push({ id: uuidv4(), name: '', style: '' });
@@ -1856,6 +1946,7 @@ function bindEvents() {
         updateStatsUI();
         // 용어집·말투 카드는 챗방별 — 화면 목록을 이 챗의 것으로 갱신
         renderGlossary();
+        renderCharGlossary();   // ← 추가
         renderVoiceCards();
     });
 }

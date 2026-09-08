@@ -67,6 +67,8 @@ const DEFAULT_SETTINGS = {
     sealTags: '',            // 번역에서 통째로 제외할 HTML 태그명 (쉼표 구분)
     readerNote: '',          // 독자 지시문
     promptTemplate: '',      // 커스텀 시스템 프롬프트 (비어 있으면 기본 틀 사용)
+    charGlossaryEnabled: true,   // 캐릭터별 용어집 사용 여부
+    charGlossary: {},            // { "avatar.png": [{id, src, dst}, ...] } — 캐릭터별 저장
     glossary: [],            // (구버전 전역 저장분) — 보관만 한다. 번역엔 절대 안 쓰이고, 패널에서 직접 [가져오기] 해야 챗방으로 들어온다
     voiceCards: [],          // (구버전 전역 저장분) — 위와 동일
     // 번역 모델 연결
@@ -204,6 +206,54 @@ function isolateBook(store) {
  */
 function getBook() {
     return getStore();
+}
+
+/* ============================================================
+ * 캐릭터별 용어집 (extension_settings에 저장 — 챗방 저장소와 완전히 분리)
+ * ============================================================ */
+
+/** 지금 이 챗방에 등장하는 캐릭터들의 키(아바타 파일명) */
+function currentCharKeys() {
+    try {
+        const ctx = getContext();
+        if (ctx.groupId) {
+            const g = (ctx.groups || []).find(x => String(x.id) === String(ctx.groupId));
+            return Array.isArray(g?.members) ? g.members.map(String) : [];
+        }
+        const ch = ctx.characters?.[ctx.characterId];
+        return ch?.avatar ? [String(ch.avatar)] : [];
+    } catch {
+        return [];
+    }
+}
+
+function charLabel(key) {
+    const ch = (getContext().characters || []).find(c => String(c.avatar) === String(key));
+    return ch?.name || key;
+}
+
+function getCharGlossary(key) {
+    if (!key) return [];
+    const s = getSettings();
+    if (!s.charGlossary || typeof s.charGlossary !== 'object') s.charGlossary = {};
+    if (!Array.isArray(s.charGlossary[key])) s.charGlossary[key] = [];
+    return s.charGlossary[key];
+}
+
+/** 프롬프트에 실을 캐릭터 용어 — 그룹이면 멤버 전원 것을 원문 표기 기준으로 중복 제거해 합친다 */
+function charGlossaryForPrompt() {
+    const s = getSettings();
+    if (!s.charGlossaryEnabled) return [];
+    const out = [];
+    const seen = new Set();
+    for (const key of currentCharKeys()) {
+        for (const g of getCharGlossary(key)) {
+            if (!g.src || !g.dst || seen.has(g.src)) continue;
+            seen.add(g.src);
+            out.push(g);
+        }
+    }
+    return out;
 }
 
 /**
@@ -462,7 +512,13 @@ function buildUserPrompt(sealed, srcCode, dstCode, { contextLines = [], extraNot
     const parts = [];
 
     const book = bookForChat(ownerChatId);
-    const glossary = (book.glossary || []).filter(g => g.src && g.dst);
+    const chatG = (book.glossary || []).filter(g => g.src && g.dst);
+    // 번역 도중 챗방이 바뀌면 캐릭터 용어도 싣지 않는다 (챗방 용어집과 동일한 잠금 규칙)
+    const sameRoom = !ownerChatId || ownerChatId === currentChatId();
+    const charG = sameRoom
+        ? charGlossaryForPrompt().filter(g => !chatG.some(x => x.src === g.src))
+        : [];
+    const glossary = [...charG, ...chatG];   // 같은 원문 표기는 챗방 쪽이 이긴다
     if (glossary.length) {
         parts.push(`[TERM SHEET — locked spellings]\n${glossary.map(g => `${g.src} = ${g.dst}`).join('\n')}`);
     }

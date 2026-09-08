@@ -107,6 +107,15 @@
             <!-- ===== 용어·말투 ===== -->
             <section class="interp__panel" data-panel="style">
                 <div id="interp_carry_notice" style="display:none;"></div>
+                <div class="interp__actions" style="justify-content:flex-end;">
+                    <div class="menu_button" id="interp_book_export" title="이 챗방의 용어집·말투 카드를 JSON 파일로 저장합니다.">
+                        <i class="fa-solid fa-file-export"></i><span>내보내기</span>
+                    </div>
+                    <div class="menu_button" id="interp_book_import" title="JSON 파일의 용어집·말투 카드를 이 챗방으로 합칩니다.">
+                        <i class="fa-solid fa-file-import"></i><span>불러오기</span>
+                    </div>
+                    <input type="file" id="interp_book_file" accept="application/json,.json" style="display:none;">
+                </div>
                 <div class="interp__section-head">
                     <div>
                         <h4>용어집</h4>

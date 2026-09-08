@@ -128,6 +128,26 @@
 
                 <div class="interp__section-head">
                     <div>
+                        <h4>캐릭터별 용어집</h4>
+                        <p>이 캐릭터가 등장하는 <strong>모든 챗방</strong>에 함께 적용됩니다. 같은 원문 표기가 위쪽 챗방 용어집에도 있으면 챗방 쪽이 우선합니다.</p>
+                    </div>
+                    <div class="interp__actions">
+                        <select id="interp_charglossary_target" class="text_pole" style="display:none;"></select>
+                        <label class="checkbox_label" title="끄면 캐릭터별 용어를 프롬프트에 싣지 않습니다.">
+                            <input type="checkbox" id="interp_charglossary_enabled"><span>사용</span>
+                        </label>
+                        <div class="menu_button" id="interp_charglossary_add">
+                            <i class="fa-solid fa-plus"></i><span>추가</span>
+                        </div>
+                        <div class="menu_button" id="interp_charglossary_clear" title="이 캐릭터의 용어를 모두 비웁니다.">
+                            <i class="fa-solid fa-trash-can"></i><span>비우기</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="interp_charglossary_list" class="interp__list"></div>
+
+                <div class="interp__section-head">
+                    <div>
                         <h4>말투 카드</h4>
                         <p>캐릭터별 어투(존댓말/반말, 말버릇, 어미)를 기록해 번역 문체를 일관되게 지킵니다. <strong>챗방별로 저장</strong>되어 다른 채팅에 영향을 주지 않습니다.</p>
                     </div>

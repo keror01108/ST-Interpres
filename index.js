@@ -1359,6 +1359,7 @@ async function openComparePopup(mesId) {
             delete message.extra.interpres_original;
             // 수정한 번역을 캐시에도 반영한다 (원문 토글 후 돌아와도 유지되도록)
             try {
+                console.log('[Interpres] 캐시 갱신 시도');
                 const s = getSettings();
                 const { sealed, vault } = sealText(orig);
                 const { sealed: sealedEdited } = sealText(edited);
@@ -1368,7 +1369,7 @@ async function openComparePopup(mesId) {
                 store.wholes[key] = { t: sealedEdited, ts: Date.now() };
                 persistStore();
             } catch (e) {
-                console.debug('[Interpres] 캐시 갱신 실패', e);
+                console.error('[Interpres] 캐시 갱신 실패', e);
             }
         } else {
             delete message.extra.display_text;

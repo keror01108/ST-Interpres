@@ -1357,6 +1357,19 @@ async function openComparePopup(mesId) {
             message.extra.display_text = edited;
             message.extra.interpres_src = getStringHash(orig);   // 손본 번역이 원문 그대로임을 표시
             delete message.extra.interpres_original;
+            // 수정한 번역을 캐시에도 반영한다 (원문 토글 후 돌아와도 유지되도록)
+            try {
+                const s = getSettings();
+                const { sealed, vault } = sealText(orig);
+                const { sealed: sealedEdited } = sealText(edited);
+                const fp = settingsFingerprint();
+                const key = cacheKey(sealed, s.storyLang, s.viewLang, fp);
+                const store = getStore();
+                store.wholes[key] = { t: sealedEdited, ts: Date.now() };
+                persistStore();
+            } catch (e) {
+                console.debug('[Interpres] 캐시 갱신 실패', e);
+            }
         } else {
             delete message.extra.display_text;
             message.extra.interpres_original = true;

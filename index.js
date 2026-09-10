@@ -1201,6 +1201,17 @@ async function translateIncoming(mesId, { force = false, fresh = false } = {}) {
         message.extra.interpres_src = getStringHash(source);   // 이 번역이 어느 원문의 것인지
         updateMessageBlock(Number(mesId), message);
 
+        setTimeout(() => {
+            const el = document.querySelector(`.mes[mesid="${mesId}"] .mes_text`);
+            if (el && !el.querySelector('.TH-render.dummy-trigger')) {
+                const t = document.createElement('div');
+                t.className = 'TH-render dummy-trigger';
+                t.style.display = 'none';
+                el.appendChild(t);
+                eventSource.emit(event_types.USER_MESSAGE_RENDERED, mesId);
+            }
+        }, 100);
+
         if (s.translateReasoning && message.extra.reasoning) {
             const rt = await translateText(String(message.extra.reasoning), s.storyLang, s.viewLang, { mesId: Number(mesId) });
             message.extra.reasoning_display_text = rt;
